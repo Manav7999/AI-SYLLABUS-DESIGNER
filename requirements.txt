@@ -1,0 +1,9 @@
+streamlit
+langchain
+langchain-core
+langchain-openai
+python-dotenv
+reportlab
+ollama
+PyPDF2
+python-docx
