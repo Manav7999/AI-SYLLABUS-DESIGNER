@@ -133,7 +133,7 @@ def create_pdf(text):
 def ask_gemini(prompt_text):
 
     model = genai.GenerativeModel(
-        "gemini-1.5-flash"
+        "gemini-2.0-flash"
     )
 
     response = model.generate_content(
