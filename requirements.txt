@@ -7,3 +7,4 @@ reportlab
 ollama
 PyPDF2
 python-docx
+markdown

@@ -639,62 +639,192 @@ def extract_text_from_file(uploaded_file):
             
     return "Unsupported file format"
 
-def create_pdf(text):
+def create_pdf(text, university="", session="", year="", branch="", semester="", subject_name=""):
+    import re as _re
+    from reportlab.platypus import Table, TableStyle, HRFlowable, BaseDocTemplate, PageTemplate, Frame
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER, TA_JUSTIFY
+
+    LM, RM, TM, BM = 54, 54, 58, 46
+    PW, PH = letter
+    CW = PW - LM - RM
+
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-    styles = getSampleStyleSheet()
-    
-    # Custom Styles
-    title_style = ParagraphStyle(
-        'TitleStyle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=HexColor("#000000"),
-        alignment=TA_CENTER,
-        spaceAfter=20
-    )
-    
-    heading_style = ParagraphStyle(
-        'HeadingStyle',
-        parent=styles['Heading2'],
-        fontSize=18,
-        textColor=HexColor("#333333"),
-        alignment=TA_LEFT,
-        spaceBefore=15,
-        spaceAfter=10
-    )
-    
-    body_style = ParagraphStyle(
-        'BodyStyle',
-        parent=styles['Normal'],
-        fontSize=11,
-        textColor=HexColor("#444444"),
-        alignment=TA_LEFT,
-        leading=14,
-        spaceAfter=6
+
+    NAVY  = HexColor("#0d1b4b")
+    DGREY = HexColor("#2d2d2d")
+    LGREY = HexColor("#f3f4f8")
+    ACC   = HexColor("#1a3a8f")
+
+    def _on_page(canv, doc):
+        canv.saveState()
+        canv.setStrokeColor(NAVY)
+        canv.setLineWidth(0.5)
+        canv.line(LM, PH - 34, PW - RM, PH - 34)
+        if university:
+            canv.setFont("Helvetica", 7)
+            canv.setFillColor(HexColor("#666666"))
+            canv.drawRightString(PW - RM, PH - 26, university.upper())
+        canv.line(LM, BM - 6, PW - RM, BM - 6)
+        canv.setFont("Helvetica", 8)
+        canv.setFillColor(HexColor("#999999"))
+        canv.drawRightString(PW - RM, BM - 17, "Page %d" % doc.page)
+        if subject_name:
+            canv.setFont("Helvetica-Oblique", 7.5)
+            canv.setFillColor(HexColor("#999999"))
+            canv.drawString(LM, BM - 17, subject_name)
+        canv.restoreState()
+
+    frame = Frame(LM, BM, CW, PH - TM - BM, id="main", showBoundary=0)
+    pt    = PageTemplate(id="std", frames=[frame], onPage=_on_page)
+    doc2  = BaseDocTemplate(
+        buffer, pagesize=letter,
+        leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM,
+        pageTemplates=[pt]
     )
 
+    sty = getSampleStyleSheet()
+    def _ps(name, **kw):
+        parent = kw.pop("parent", sty["Normal"])
+        return ParagraphStyle(name, parent=parent, **kw)
+
+    P = {
+        "college": _ps("_coll", fontSize=21, fontName="Helvetica-Bold",
+                        textColor=NAVY, alignment=TA_CENTER, leading=25),
+        "meta_l":  _ps("_ml",   fontSize=9.5, fontName="Helvetica",
+                        textColor=DGREY, alignment=TA_LEFT,  leading=15),
+        "meta_r":  _ps("_mr",   fontSize=9.5, fontName="Helvetica",
+                        textColor=DGREY, alignment=TA_RIGHT, leading=15),
+        "subj":    _ps("_sub",  fontSize=13,  fontName="Helvetica-Bold",
+                        textColor=colors.white, alignment=TA_CENTER, leading=17),
+        "sec":     _ps("_sec",  fontSize=11.5, fontName="Helvetica-Bold",
+                        textColor=NAVY, alignment=TA_LEFT, leading=15, leftIndent=10),
+        "h3":      _ps("_h3",   fontSize=10.5, fontName="Helvetica-Bold",
+                        textColor=ACC,  alignment=TA_LEFT, leading=14,
+                        spaceBefore=8, spaceAfter=3),
+        "body":    _ps("_body", fontSize=10, fontName="Helvetica",
+                        textColor=DGREY, alignment=TA_JUSTIFY, leading=15.5, spaceAfter=5),
+        "prac":    _ps("_prac", fontSize=10, fontName="Helvetica",
+                        textColor=DGREY, alignment=TA_LEFT, leading=15,
+                        spaceAfter=5, leftIndent=20, firstLineIndent=-20),
+        "bull":    _ps("_bull", fontSize=10, fontName="Helvetica",
+                        textColor=DGREY, alignment=TA_LEFT, leading=14,
+                        spaceAfter=3, leftIndent=14),
+    }
+
+    def _c(t):
+        t = _re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', t)
+        t = _re.sub(r'\*(.*?)\*',     r'<i>\1</i>', t)
+        t = t.replace('`', '').replace('&', '&amp;')
+        return t
+
+    def _sh(txt):
+        tbl = Table([[Paragraph(_c(txt), P["sec"])]], colWidths=[CW])
+        tbl.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), LGREY),
+            ("LINEBEFORE",    (0, 0), (0,  -1), 4, NAVY),
+            ("TOPPADDING",    (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
+        ]))
+        return tbl
+
     story = []
-    
-    # Very basic Markdown-ish parsing for PDF
-    lines = text.split('\n')
-    for line in lines:
-        line = line.strip()
-        if not line:
-            story.append(Spacer(1, 12))
+    story.append(Spacer(1, 2))
+    story.append(Paragraph(university.upper() if university else "UNIVERSITY SYLLABUS", P["college"]))
+    story.append(Spacer(1, 7))
+    story.append(HRFlowable(width="100%", thickness=2.5, color=NAVY, spaceAfter=9))
+
+    L, R = [], []
+    if branch:   L.append("<b>Branch   :</b>  " + branch)
+    if semester: L.append("<b>Semester :</b>  " + semester)
+    if session:  L.append("<b>Session  :</b>  " + session)
+    if year:     R.append("<b>Year :</b>  " + year)
+
+    itbl = Table(
+        [[Paragraph("<br/>".join(L) or "&nbsp;", P["meta_l"]),
+          Paragraph("<br/>".join(R) or "&nbsp;", P["meta_r"])]],
+        colWidths=[CW * 0.62, CW * 0.38]
+    )
+    itbl.setStyle(TableStyle([
+        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+    ]))
+    story.append(itbl)
+    story.append(Spacer(1, 9))
+    story.append(HRFlowable(width="100%", thickness=0.7, color=HexColor("#c0c0c0"), spaceAfter=10))
+
+    if subject_name:
+        stbl = Table([[Paragraph(subject_name.upper(), P["subj"])]], colWidths=[CW])
+        stbl.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), NAVY),
+            ("TOPPADDING",    (0, 0), (-1, -1), 10),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 12),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 12),
+        ]))
+        story.append(stbl)
+        story.append(Spacer(1, 14))
+
+    lines = text.split("\n")
+    i = 0
+    while i < len(lines):
+        s = lines[i].strip()
+        if not s:
+            story.append(Spacer(1, 3)); i += 1; continue
+
+        if s.startswith("|") and i + 1 < len(lines) and lines[i+1].strip().startswith("|---"):
+            rows = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+                if not all(_re.fullmatch(r"[-: ]+", c) for c in cells):
+                    rows.append(cells)
+                i += 1
+            if rows:
+                nc = max(len(r) for r in rows)
+                rows = [r + [""] * (nc - len(r)) for r in rows]
+                cw2 = CW / nc
+                tbl = Table(rows, colWidths=[cw2] * nc, repeatRows=1)
+                tbl.setStyle(TableStyle([
+                    ("BACKGROUND",     (0, 0), (-1, 0),  NAVY),
+                    ("TEXTCOLOR",      (0, 0), (-1, 0),  colors.white),
+                    ("FONTNAME",       (0, 0), (-1, 0),  "Helvetica-Bold"),
+                    ("FONTSIZE",       (0, 0), (-1, -1), 8.5),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [LGREY, colors.white]),
+                    ("GRID",           (0, 0), (-1, -1), 0.3, HexColor("#cccccc")),
+                    ("ALIGN",          (0, 0), (-1, -1), "LEFT"),
+                    ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING",     (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING",  (0, 0), (-1, -1), 5),
+                    ("LEFTPADDING",    (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING",   (0, 0), (-1, -1), 6),
+                ]))
+                story.append(Spacer(1, 4))
+                story.append(tbl)
+                story.append(Spacer(1, 6))
             continue
-            
-        if line.startswith('# '):
-            story.append(Paragraph(line[2:], title_style))
-        elif line.startswith('## ') or line.startswith('### '):
-            story.append(Paragraph(line.lstrip('#').strip(), heading_style))
+
+        if s.startswith("# ") and not s.startswith("## "):
+            i += 1; continue
+        elif s.startswith("## "):
+            story.append(Spacer(1, 5))
+            story.append(_sh(s[3:]))
+            story.append(Spacer(1, 5))
+        elif s.startswith("### "):
+            story.append(Paragraph(_c(s[4:]), P["h3"]))
+        elif _re.match(r"^\d+[.)]\s", s):
+            story.append(Paragraph(_c(s), P["prac"]))
+        elif s[:2] in ("- ", "* "):
+            story.append(Paragraph("\u2022  " + _c(s[2:]), P["bull"]))
         else:
-            # Handle basic bolding (simple regex replacement)
-            import re
-            line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line)
-            story.append(Paragraph(line, body_style))
-            
-    doc.build(story)
+            story.append(Paragraph(_c(s), P["body"]))
+        i += 1
+
+    doc2.build(story)
     buffer.seek(0)
     return buffer
 
@@ -732,6 +862,15 @@ with st.sidebar:
         <h2>AI Syllabus Designer</h2>
     </div>
     """, unsafe_allow_html=True)
+
+    university_name = st.text_input(
+        "University / College Name",
+        placeholder="e.g. University of Mumbai"
+    )
+    academic_session = st.text_input(
+        "Academic Session",
+        placeholder="e.g. 2024 - 2025"
+    )
 
     semester = st.selectbox(
         "Target Semester",
@@ -823,128 +962,151 @@ with col:
 if generate:
 
     if subject == "":
-        st.warning("Please enter subject name")
+        st.warning("Please enter a subject name before generating.")
 
     else:
 
-        if uploaded_file:
-            prompt = f"""
-            You are an expert academic curriculum designer. I am providing you with an existing, possibly outdated university syllabus for the subject '{subject}'.
-            
-            Your task is to MODERNIZE and IMPROVE this syllabus to align with current industry standards and academic rigor.
-            
-            Context Parameters:
-            - Target Class: {class_name}
-            - Branch: {branch}
-            - Semester: {semester}
-            - Target Difficulty: {difficulty}
-            - Total Modules/Units: {units}
-            
-            Original Syllabus Content:
-            ---
-            {extracted_content[:4000]} # Limit to 4000 chars to avoid token issues
-            ---
-            
-            Additional Course Description/Objectives:
-            {course_description}
-            
-            Instructions:
-            1. Keep the core foundational topics from the original syllabus.
-            2. Update outdated technologies or methodologies with current state-of-the-art equivalents.
-            3. Enhance the 'Learning Outcomes' and 'Practical Work' sections to be more industry-relevant.
-            4. Re-organize the content into exactly {units} units as specified.
-            5. Use Markdown headers (e.g., #, ##, ###) and bolding (**text**) for structure.
-            6. Provide the output in a highly professional, ready-to-print academic format.
-            
-            Structure:
-            # [Subject Name] Syllabus
-            ## Course Overview
-            ...
-            ## Learning Outcomes (Mapped to Bloom's Taxonomy)
-            ...
-            ## Unit-wise Content ({units} Units)
-            ...
-            ## Practical & Laboratory Work
-            ...
-            ## Assignments & Evaluation
-            ...
-            ## Mini Projects
-            ...
-            ## Recommended Resources & Bibliography
-            """
-        else:
-            prompt = f"""
-            Generate a high-quality, professional university syllabus for the subject '{subject}'.
-    
-            Context:
-            - Subject: {subject}
-            - Class: {class_name}
-            - Branch: {branch}
-            - Semester: {semester}
-            - Difficulty Level: {difficulty}
-            - Total Units: {units}
-    
-            Course Description/Intent:
-            {course_description}
-    
-            Formatting Guidelines:
-            - Use Markdown headers (# for Title, ## for Sections, ### for Subsections).
-            - Use bullet points for lists.
-            - Ensure a balanced distribution of topics across {units} units.
-            - The tone should be academic, rigorous, and inspiring.
-    
-            Include these exact sections:
-            # {subject} - Syllabus
-            ## 1. Course Description
-            ## 2. Learning Objectives
-            ## 3. Unit-wise Detailed Content (Total {units} Units)
-            ## 4. Laboratory / Practical Work
-            ## 5. Assessment & Assignment Strategy
-            ## 6. Mini-Project Ideas
-            ## 7. Course Learning Outcomes
-            ## 8. Suggested Textbooks & Reference Materials (Latest Editions)
-            """
-        
-        prompt += "\nMake it highly professional."
+        univ_line    = ("University: " + university_name) if university_name else ""
+        session_line = ("Session: " + academic_session)   if academic_session else ""
+        ctx = (
+            "Subject: " + subject + " | " + branch + " | " + semester +
+            " | " + class_name + " | Difficulty: " + difficulty + "\n" +
+            univ_line + "\n" + session_line + "\n" +
+            "Course intent: " + (course_description or "Standard university course.")
+        )
+        old_syl = ("\nOLD SYLLABUS REFERENCE:\n" + extracted_content[:1400]) if (uploaded_file and extracted_content) else ""
 
-        with st.spinner("Generating professional syllabus..."):
+        def ask(prompt_text, tokens=600):
+            r = ollama.chat(
+                model="gemma:2b",
+                messages=[{"role": "user", "content": prompt_text}],
+                options={
+                    "num_predict":    tokens,
+                    "num_ctx":        4096,
+                    "temperature":    0.65,
+                    "repeat_penalty": 1.3,
+                    "repeat_last_n":  64,
+                }
+            )
+            return r["message"]["content"].strip()
 
-            try:
+        total_steps = 1 + units + 2   # overview + N units + practicals + summary
+        step        = 0
+        parts       = []
+        bar         = st.progress(0, text="Starting generation...")
 
-                response = ollama.chat(
-                    model="gemma:2b",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
+        try:
+            # PASS 1: Course Overview  (3 rich paragraphs)
+            bar.progress(step / total_steps, text="Writing Course Overview...")
+            ov = ask(
+                "Write a detailed Course Overview for the university subject '" + subject + "'.\n" +
+                ctx + old_syl + "\n\n" +
+                "Write exactly 3 paragraphs in formal academic English:\n"
+                "Paragraph 1: Describe the subject scope, its place in the curriculum, and what makes it important.\n"
+                "Paragraph 2: List and explain the key themes and concepts students will study.\n"
+                "Paragraph 3: Describe prerequisites, target audience, and real-world career applications.\n"
+                "No bullet points. No headings. Minimum 250 words total.",
+                tokens=700
+            )
+            parts.append("## Course Overview\n\n" + ov)
+            step += 1
+
+            # PASS 2: One API call per unit
+            for u in range(1, units + 1):
+                bar.progress(step / total_steps, text="Writing Unit " + str(u) + " of " + str(units) + "...")
+                ut = ask(
+                    "Write Unit " + str(u) + " of " + str(units) +
+                    " for a university syllabus on '" + subject + "'.\n" + ctx + "\n\n" +
+                    "Start with: ## UNIT " + str(u) + " - [descriptive academic title]\n" +
+                    "Then write a rich, detailed academic description of this unit in 200-250 words. "
+                    "Cover: the main topics and subtopics, key theories and concepts, "
+                    "important algorithms or methodologies, and how these connect to real-world applications. "
+                    "Write as continuous academic prose. No bullet points. No sub-headings.",
+                    tokens=700
                 )
 
-                result = response["message"]["content"]
+                # ── Normalize the unit heading to ensure correct order ──────
+                import re as _re2
+                ut_lines = ut.split("\n")
+                heading_found = False
+                fixed_lines = []
+                for ln in ut_lines:
+                    if not heading_found and ln.strip().startswith("##"):
+                        heading_found = True
+                        # Extract the title text after any existing "UNIT N" prefix
+                        raw_title = ln.strip().lstrip("#").strip()
+                        raw_title = _re2.sub(
+                            r"^(?:unit|u)\s*\d+\s*[-:.–]?\s*",
+                            "", raw_title, flags=_re2.IGNORECASE
+                        ).strip()
+                        if not raw_title:
+                            raw_title = "Core Concepts and Principles"
+                        fixed_lines.append("## UNIT " + str(u) + " - " + raw_title)
+                    else:
+                        fixed_lines.append(ln)
+                if not heading_found:
+                    # Model gave no heading — insert one
+                    fixed_lines.insert(0, "## UNIT " + str(u) + " - Unit " + str(u) + " Content")
+                ut = "\n".join(fixed_lines)
+                # ───────────────────────────────────────────────────────────
 
-                st.success("✅ Syllabus Generated Successfully!")
+                parts.append(ut)
+                step += 1
 
-                # PDF Generation
-                pdf_data = create_pdf(result)
-                
-                st.download_button(
-                    label="📥 Download Syllabus as PDF",
-                    data=pdf_data,
-                    file_name=f"{subject.replace(' ', '_')}_Syllabus.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
 
-                st.markdown(
-                    f"""
-                    <div class="generated-box">
-                    {result}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+            # PASS 3a: Laboratory Practicals (dedicated call for full detail)
+            bar.progress(step / total_steps, text="Writing Laboratory Practicals...")
+            prac = ask(
+                "Write 12 Laboratory Practicals for the university subject '" + subject + "'.\n" +
+                ctx + "\n\n" +
+                "Number each practical 1 to 12. For each practical write:\n"
+                "[Number]. [Practical Title]\n"
+                "Aim: [One clear sentence stating what the student will achieve.]\n"
+                "Procedure: [Two to three sentences describing the steps involved, tools used, and expected output.]\n\n"
+                "Start immediately with '## Laboratory Practicals' then list all 12.",
+                tokens=1300
+            )
+            parts.append(prac)
+            step += 1
 
-            except Exception as e:
+            # PASS 3b: Summary (separate call so it is never cut off)
+            bar.progress(step / total_steps, text="Writing Summary...")
+            summ = ask(
+                "Write a Syllabus Summary for the university subject '" + subject + "'.\n" +
+                ctx + "\n\n" +
+                "Start with the heading: ## Summary\n"
+                "Then write 2 solid paragraphs in formal academic English:\n"
+                "Paragraph 1: Summarise what students will learn across all units and practicals.\n"
+                "Paragraph 2: Explain the career outcomes, industry relevance, and higher study pathways this subject enables.\n"
+                "No bullet points. Minimum 150 words.",
+                tokens=450
+            )
+            parts.append(summ)
+            bar.progress(1.0, text="Done!")
 
-                st.error(f"Error during generation: {e}")
+            result = "\n\n".join(parts)
+            st.success("Syllabus Generated Successfully!")
+
+            pdf_data = create_pdf(
+                result,
+                university   = university_name,
+                session      = academic_session,
+                year         = class_name,
+                branch       = branch,
+                semester     = semester,
+                subject_name = subject
+            )
+            st.download_button(
+                label="Download Syllabus as PDF",
+                data=pdf_data,
+                file_name=subject.replace(" ", "_") + "_Syllabus.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+
+            import markdown as md_lib
+            result_html = md_lib.markdown(result, extensions=["tables", "fenced_code", "nl2br"])
+            st.markdown('<div class="generated-box">' + result_html + '</div>', unsafe_allow_html=True)
+
+        except Exception as e:
+            st.error("Error during generation: " + str(e))
