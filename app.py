@@ -67,7 +67,10 @@ def extract_text_from_file(uploaded_file):
         text = ""
 
         for page in pdf_reader.pages:
-            text += page.extract_text()
+            page_text = page.extract_text()
+
+            if page_text:
+                text += page_text
 
         return text
 
@@ -135,7 +138,7 @@ def ask_bytez(prompt_text):
     }
 
     payload = {
-        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model": "gpt-3.5-turbo",
         "messages": [
             {
                 "role": "system",
@@ -158,7 +161,7 @@ def ask_bytez(prompt_text):
 
     result = response.json()
 
-    # DEBUGGING
+    # ERROR HANDLING
     if "choices" not in result:
 
         return f"API Error: {result}"
