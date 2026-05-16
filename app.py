@@ -51,7 +51,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- FILE EXTRACTION ---------------- #
+# ---------------- FILE TEXT EXTRACTION ---------------- #
 
 def extract_text_from_file(uploaded_file):
 
@@ -95,7 +95,7 @@ def extract_text_from_file(uploaded_file):
 
     return ""
 
-# ---------------- PDF GENERATOR ---------------- #
+# ---------------- PDF CREATION ---------------- #
 
 def create_pdf(text):
 
@@ -129,7 +129,7 @@ def create_pdf(text):
 
     return buffer
 
-# ---------------- HUGGING FACE FUNCTION ---------------- #
+# ---------------- HUGGING FACE AI FUNCTION ---------------- #
 
 def ask_huggingface(prompt_text):
 
@@ -138,13 +138,12 @@ def ask_huggingface(prompt_text):
         HF_TOKEN = st.secrets["HF_API_KEY"]
 
         client = InferenceClient(
-            provider="hf-inference",
-            api_key=HF_TOKEN
+            token=HF_TOKEN
         )
 
         response = client.chat.completions.create(
 
-            model="HuggingFaceTB/SmolLM2-1.7B-Instruct",
+            model="microsoft/Phi-3-mini-4k-instruct",
 
             messages=[
                 {
@@ -166,7 +165,7 @@ def ask_huggingface(prompt_text):
 
         return f"API Error: {str(e)}"
 
-# ---------------- HERO SECTION ---------------- #
+# ---------------- TITLE ---------------- #
 
 st.title("📚 AI Syllabus Designer")
 
@@ -226,7 +225,7 @@ with st.sidebar:
         5
     )
 
-# ---------------- MAIN SECTION ---------------- #
+# ---------------- MAIN UI ---------------- #
 
 subject = st.text_input(
     "Subject Name",
@@ -247,7 +246,7 @@ generate = st.button(
     "Generate Syllabus"
 )
 
-# ---------------- GENERATE SYLLABUS ---------------- #
+# ---------------- GENERATE ---------------- #
 
 if generate:
 
@@ -261,16 +260,18 @@ if generate:
 
         extracted_text = ""
 
+        # EXTRACT FILE
         if uploaded_file:
 
             with st.spinner(
-                "Extracting syllabus file..."
+                "Extracting old syllabus..."
             ):
 
                 extracted_text = extract_text_from_file(
                     uploaded_file
                 )
 
+        # AI PROMPT
         prompt = f"""
 Create a professional university syllabus.
 
@@ -293,16 +294,23 @@ Reference Old Syllabus:
 {extracted_text[:2000]}
 
 Generate:
+
 1. Course Overview
+
 2. Learning Outcomes
+
 3. Unit Wise Topics
+
 4. Practical List
+
 5. Recommended Books
+
 6. Career Opportunities
 
-Make the syllabus detailed and professional.
+Make the syllabus detailed, professional and structured properly.
 """
 
+        # GENERATE RESPONSE
         with st.spinner(
             "Generating syllabus..."
         ):
@@ -321,7 +329,7 @@ Make the syllabus detailed and professional.
                 "Syllabus Generated Successfully"
             )
 
-            # PDF DOWNLOAD
+            # PDF
             pdf_data = create_pdf(output)
 
             st.download_button(
@@ -331,7 +339,7 @@ Make the syllabus detailed and professional.
                 mime="application/pdf"
             )
 
-            # SHOW OUTPUT
+            # DISPLAY OUTPUT
             html_output = md_lib.markdown(output)
 
             st.markdown(
