@@ -28,7 +28,7 @@ st.markdown("""
 <style>
 
 .stApp {
-    background: #f5f5f5;
+    background-color: #f5f5f5;
 }
 
 .stButton button {
@@ -41,7 +41,7 @@ st.markdown("""
 
 .generated-box {
     background: white;
-    padding: 30px;
+    padding: 25px;
     border-radius: 15px;
     border: 1px solid #dddddd;
     margin-top: 20px;
@@ -113,9 +113,12 @@ def create_pdf(text):
 
     for line in lines:
 
-        p = Paragraph(line, styles["BodyText"])
+        paragraph = Paragraph(
+            line,
+            styles["BodyText"]
+        )
 
-        story.append(p)
+        story.append(paragraph)
 
         story.append(Spacer(1, 10))
 
@@ -165,10 +168,13 @@ def ask_huggingface(prompt_text):
 
             st.write("Status Code:", response.status_code)
 
-            # EMPTY RESPONSE CHECK
+            # SHOW RAW RESPONSE
+            st.write(response.text)
+
+            # EMPTY RESPONSE
             if response.text.strip() == "":
 
-                last_error = "Empty response from HuggingFace API"
+                last_error = "Empty response from HuggingFace"
 
                 continue
 
@@ -183,9 +189,7 @@ def ask_huggingface(prompt_text):
 
                 continue
 
-            st.write(result)
-
-            # SUCCESS
+            # SUCCESS RESPONSE
             if isinstance(result, list):
 
                 if len(result) > 0:
@@ -194,7 +198,7 @@ def ask_huggingface(prompt_text):
 
                         return result[0]["generated_text"]
 
-            # MODEL LOADING / ERRORS
+            # ERROR RESPONSE
             if isinstance(result, dict):
 
                 if "error" in result:
@@ -232,7 +236,7 @@ def ask_ollama(prompt_text):
 
     return result["response"]
 
-# ---------------- HERO ---------------- #
+# ---------------- HERO SECTION ---------------- #
 
 st.title("📚 AI Syllabus Designer")
 
@@ -325,7 +329,7 @@ generate = st.button(
 
 if generate:
 
-    if subject == "":
+    if subject.strip() == "":
 
         st.warning(
             "Please enter subject name"
@@ -346,36 +350,36 @@ if generate:
                 )
 
         prompt = f"""
-        Create a professional university syllabus.
+Create a professional university syllabus.
 
-        Subject: {subject}
+Subject: {subject}
 
-        University: {university_name}
+University: {university_name}
 
-        Branch: {branch}
+Branch: {branch}
 
-        Semester: {semester}
+Semester: {semester}
 
-        Difficulty: {difficulty}
+Difficulty: {difficulty}
 
-        Total Units: {units}
+Total Units: {units}
 
-        Course Description:
-        {description}
+Course Description:
+{description}
 
-        Old Syllabus Reference:
-        {extracted_text[:2000]}
+Old Syllabus Reference:
+{extracted_text[:2000]}
 
-        Generate:
-        1. Course Overview
-        2. Learning Outcomes
-        3. Unit Wise Syllabus
-        4. Practical List
-        5. Recommended Books
-        6. Career Outcomes
+Generate:
+1. Course Overview
+2. Learning Outcomes
+3. Unit Wise Syllabus
+4. Practical List
+5. Recommended Books
+6. Career Outcomes
 
-        Make it professional and detailed.
-        """
+Make it professional and detailed.
+"""
 
         try:
 
