@@ -1,9 +1,10 @@
 import streamlit as st
-import requests
 import PyPDF2
 import docx
 import io
 import markdown as md_lib
+
+from huggingface_hub import InferenceClient
 
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import (
@@ -128,11 +129,11 @@ def create_pdf(text):
 
     return buffer
 
-# ---------------- HUGGING FACE FUNCTION ---------------- #
+# ---------------- HUGGINGFACE FUNCTION ---------------- #
 
 def ask_huggingface(prompt_text):
 
-    API_KEY = st.secrets["HF_API_KEY"]
+    HF_TOKEN = st.secrets["HF_API_KEY"]
 
     models = [
 
@@ -141,100 +142,33 @@ def ask_huggingface(prompt_text):
 
     ]
 
-    headers = {
-        "Authorization": f"Bearer {API_KEY}"
-    }
-
     last_error = ""
 
     for model_name in models:
-
-        API_URL = f"https://api-inference.huggingface.co/models/{model_name}"
-
-        payload = {
-            "inputs": prompt_text
-        }
 
         try:
 
             st.write(f"Trying Model: {model_name}")
 
-            response = requests.post(
-                API_URL,
-                headers=headers,
-                json=payload,
-                timeout=120
+            client = InferenceClient(
+                model=model_name,
+                token=HF_TOKEN
             )
 
-            st.write("Status Code:", response.status_code)
+            response = client.text_generation(
+                prompt_text,
+                max_new_tokens=700
+            )
 
-            # SHOW RAW RESPONSE
-            st.write(response.text)
+            if response:
 
-            # EMPTY RESPONSE
-            if response.text.strip() == "":
-
-                last_error = "Empty response from HuggingFace"
-
-                continue
-
-            # SAFE JSON PARSE
-            try:
-
-                result = response.json()
-
-            except Exception:
-
-                last_error = response.text
-
-                continue
-
-            # SUCCESS RESPONSE
-            if isinstance(result, list):
-
-                if len(result) > 0:
-
-                    if "generated_text" in result[0]:
-
-                        return result[0]["generated_text"]
-
-            # ERROR RESPONSE
-            if isinstance(result, dict):
-
-                if "error" in result:
-
-                    last_error = result["error"]
-
-                else:
-
-                    last_error = str(result)
+                return response
 
         except Exception as e:
 
             last_error = str(e)
 
     return f"All HuggingFace models failed. Last Error: {last_error}"
-
-# ---------------- OLLAMA FUNCTION ---------------- #
-
-def ask_ollama(prompt_text):
-
-    url = "http://localhost:11434/api/generate"
-
-    payload = {
-        "model": "gemma:2b",
-        "prompt": prompt_text,
-        "stream": False
-    }
-
-    response = requests.post(
-        url,
-        json=payload
-    )
-
-    result = response.json()
-
-    return result["response"]
 
 # ---------------- HERO SECTION ---------------- #
 
@@ -249,14 +183,6 @@ st.write(
 with st.sidebar:
 
     st.header("⚙️ Settings")
-
-    provider = st.selectbox(
-        "AI Provider",
-        [
-            "HuggingFace Cloud",
-            "Ollama Local"
-        ]
-    )
 
     university_name = st.text_input(
         "University Name"
@@ -387,15 +313,7 @@ Make it professional and detailed.
                 "Generating syllabus..."
             ):
 
-                # HUGGINGFACE CLOUD
-                if provider == "HuggingFace Cloud":
-
-                    output = ask_huggingface(prompt)
-
-                # OLLAMA LOCAL
-                else:
-
-                    output = ask_ollama(prompt)
+                output = ask_huggingface(prompt)
 
             st.success(
                 "Syllabus Generated Successfully"
