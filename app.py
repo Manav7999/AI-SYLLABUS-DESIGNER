@@ -125,81 +125,65 @@ def create_pdf(text):
 
     return buffer
 
-# ---------------- BYTEZ FUNCTION ---------------- #
+# ---------------- HUGGING FACE FUNCTION ---------------- #
 
-def ask_bytez(prompt_text):
+def ask_huggingface(prompt_text):
 
-    API_KEY = st.secrets["BYTEZ_API_KEY"]
+    API_KEY = st.secrets["HF_API_KEY"]
 
-    url = "https://api.bytez.com/models/v2/openai/v1/chat/completions"
-
-    headers = {
-        "Authorization": API_KEY,
-        "Content-Type": "application/json"
-    }
-
-    # MULTIPLE FALLBACK MODELS
     models = [
 
-        "google/gemma-2-2b-it",
-        "microsoft/phi-2",
-        "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-        "mistralai/Mistral-7B-Instruct-v0.2",
-        "meta-llama/Llama-2-7b-chat-hf"
+        "google/flan-t5-large",
+        "google/flan-t5-base",
+        "facebook/bart-large-cnn"
 
     ]
 
+    headers = {
+        "Authorization": f"Bearer {API_KEY}"
+    }
+
     last_error = ""
 
-    # TRY MODELS ONE BY ONE
+    # TRY MULTIPLE MODELS
     for model_name in models:
 
+        API_URL = f"https://api-inference.huggingface.co/models/{model_name}"
+
         payload = {
-            "model": model_name,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are an expert university syllabus designer."
-                },
-                {
-                    "role": "user",
-                    "content": prompt_text
-                }
-            ],
-            "max_tokens": 1000,
-            "temperature": 0.7
+            "inputs": prompt_text
         }
 
         try:
 
+            st.write(f"Trying Model: {model_name}")
+
             response = requests.post(
-                url,
+                API_URL,
                 headers=headers,
                 json=payload,
-                timeout=60
+                timeout=120
             )
 
             result = response.json()
 
             # DEBUG OUTPUT
-            st.write(f"Trying Model: {model_name}")
+            st.write(result)
 
             # SUCCESS
-            if "choices" in result:
+            if isinstance(result, list):
 
-                return result["choices"][0]["message"]["content"]
+                if "generated_text" in result[0]:
 
-            # STORE ERROR
-            else:
+                    return result[0]["generated_text"]
 
-                last_error = result
+            last_error = result
 
         except Exception as e:
 
             last_error = str(e)
 
-    # IF ALL MODELS FAIL
-    return f"All models failed. Last Error: {last_error}"
+    return f"All HuggingFace models failed. Last Error: {last_error}"
 
 # ---------------- OLLAMA FUNCTION ---------------- #
 
@@ -239,7 +223,7 @@ with st.sidebar:
     provider = st.selectbox(
         "AI Provider",
         [
-            "Bytez Cloud",
+            "HuggingFace Cloud",
             "Ollama Local"
         ]
     )
@@ -373,10 +357,10 @@ if generate:
                 "Generating syllabus..."
             ):
 
-                # BYTEZ CLOUD
-                if provider == "Bytez Cloud":
+                # HUGGINGFACE CLOUD
+                if provider == "HuggingFace Cloud":
 
-                    output = ask_bytez(prompt)
+                    output = ask_huggingface(prompt)
 
                 # OLLAMA LOCAL
                 else:
