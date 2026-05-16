@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import google.generativeai as genai
 import PyPDF2
 import docx
 import io
@@ -21,12 +20,6 @@ st.set_page_config(
     page_title="AI Syllabus Designer",
     page_icon="📚",
     layout="wide"
-)
-
-# ---------------- GEMINI CONFIG ---------------- #
-
-genai.configure(
-    api_key=st.secrets["GEMINI_API_KEY"]
 )
 
 # ---------------- CUSTOM CSS ---------------- #
@@ -128,19 +121,44 @@ def create_pdf(text):
 
     return buffer
 
-# ---------------- GEMINI FUNCTION ---------------- #
+# ---------------- BYTEZ AI FUNCTION ---------------- #
 
-def ask_gemini(prompt_text):
+def ask_bytez(prompt_text):
 
-    model = genai.GenerativeModel(
-        "gemini-2.0-flash"
+    API_KEY = st.secrets["BYTEZ_API_KEY"]
+
+    url = "https://api.bytez.com/models/v2/openai/v1/chat/completions"
+
+    headers = {
+        "Authorization": API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are an expert university syllabus designer."
+            },
+            {
+                "role": "user",
+                "content": prompt_text
+            }
+        ],
+        "max_tokens": 1200,
+        "temperature": 0.7
+    }
+
+    response = requests.post(
+        url,
+        headers=headers,
+        json=payload
     )
 
-    response = model.generate_content(
-        prompt_text
-    )
+    result = response.json()
 
-    return response.text
+    return result["choices"][0]["message"]["content"]
 
 # ---------------- OLLAMA FUNCTION ---------------- #
 
@@ -180,7 +198,7 @@ with st.sidebar:
     provider = st.selectbox(
         "AI Provider",
         [
-            "Gemini Cloud",
+            "Bytez Cloud",
             "Ollama Local"
         ]
     )
@@ -295,7 +313,7 @@ if generate:
         {description}
 
         Old Syllabus Reference:
-        {extracted_text}
+        {extracted_text[:2000]}
 
         Generate:
         1. Course Overview
@@ -314,10 +332,10 @@ if generate:
                 "Generating syllabus..."
             ):
 
-                # GEMINI CLOUD
-                if provider == "Gemini Cloud":
+                # BYTEZ CLOUD
+                if provider == "Bytez Cloud":
 
-                    output = ask_gemini(prompt)
+                    output = ask_bytez(prompt)
 
                 # OLLAMA LOCAL
                 else:
@@ -328,7 +346,7 @@ if generate:
                 "Syllabus Generated Successfully"
             )
 
-            # PDF DOWNLOAD
+            # PDF
             pdf_data = create_pdf(output)
 
             st.download_button(
@@ -338,7 +356,7 @@ if generate:
                 mime="application/pdf"
             )
 
-            # DISPLAY OUTPUT
+            # DISPLAY
             html_output = md_lib.markdown(output)
 
             st.markdown(
