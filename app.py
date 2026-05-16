@@ -67,6 +67,7 @@ def extract_text_from_file(uploaded_file):
         text = ""
 
         for page in pdf_reader.pages:
+
             page_text = page.extract_text()
 
             if page_text:
@@ -138,7 +139,7 @@ def ask_bytez(prompt_text):
     }
 
     payload = {
-        "model": "gpt-3.5-turbo",
+        "model": "meta-llama/Meta-Llama-3-8B-Instruct",
         "messages": [
             {
                 "role": "system",
