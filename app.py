@@ -79,11 +79,11 @@ def extract_text_from_file(uploaded_file):
     # DOCX
     elif file_extension in ["docx", "doc"]:
 
-        doc = docx.Document(uploaded_file)
+        document = docx.Document(uploaded_file)
 
         text = ""
 
-        for para in doc.paragraphs:
+        for para in document.paragraphs:
             text += para.text + "\n"
 
         return text
@@ -101,7 +101,7 @@ def create_pdf(text):
 
     buffer = io.BytesIO()
 
-    doc = SimpleDocTemplate(
+    document = SimpleDocTemplate(
         buffer,
         pagesize=letter
     )
@@ -123,13 +123,13 @@ def create_pdf(text):
 
         story.append(Spacer(1, 10))
 
-    doc.build(story)
+    document.build(story)
 
     buffer.seek(0)
 
     return buffer
 
-# ---------------- HUGGINGFACE FUNCTION ---------------- #
+# ---------------- HUGGING FACE FUNCTION ---------------- #
 
 def ask_huggingface(prompt_text):
 
@@ -144,7 +144,7 @@ def ask_huggingface(prompt_text):
 
         response = client.chat.completions.create(
 
-            model="Qwen/Qwen2.5-7B-Instruct",
+            model="HuggingFaceTB/SmolLM2-1.7B-Instruct",
 
             messages=[
                 {
@@ -247,7 +247,7 @@ generate = st.button(
     "Generate Syllabus"
 )
 
-# ---------------- GENERATION ---------------- #
+# ---------------- GENERATE SYLLABUS ---------------- #
 
 if generate:
 
@@ -264,7 +264,7 @@ if generate:
         if uploaded_file:
 
             with st.spinner(
-                "Extracting file..."
+                "Extracting syllabus file..."
             ):
 
                 extracted_text = extract_text_from_file(
@@ -276,42 +276,45 @@ Create a professional university syllabus.
 
 Subject: {subject}
 
-University: {university_name}
-
-Branch: {branch}
+University Name: {university_name}
 
 Semester: {semester}
 
-Difficulty: {difficulty}
+Branch: {branch}
+
+Difficulty Level: {difficulty}
 
 Total Units: {units}
 
 Course Description:
 {description}
 
-Old Syllabus Reference:
+Reference Old Syllabus:
 {extracted_text[:2000]}
 
 Generate:
 1. Course Overview
 2. Learning Outcomes
-3. Unit Wise Syllabus
+3. Unit Wise Topics
 4. Practical List
 5. Recommended Books
 6. Career Opportunities
 
-Make it professional and detailed.
+Make the syllabus detailed and professional.
 """
 
-        with st.spinner("Generating syllabus..."):
+        with st.spinner(
+            "Generating syllabus..."
+        ):
 
             output = ask_huggingface(prompt)
 
-        # SHOW RESULT
+        # ERROR
         if output.startswith("API Error"):
 
             st.error(output)
 
+        # SUCCESS
         else:
 
             st.success(
@@ -328,7 +331,7 @@ Make it professional and detailed.
                 mime="application/pdf"
             )
 
-            # DISPLAY OUTPUT
+            # SHOW OUTPUT
             html_output = md_lib.markdown(output)
 
             st.markdown(
