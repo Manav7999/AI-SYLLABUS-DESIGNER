@@ -121,7 +121,7 @@ def create_pdf(text):
 
     return buffer
 
-# ---------------- BYTEZ AI FUNCTION ---------------- #
+# ---------------- BYTEZ FUNCTION ---------------- #
 
 def ask_bytez(prompt_text):
 
@@ -157,6 +157,11 @@ def ask_bytez(prompt_text):
     )
 
     result = response.json()
+
+    # DEBUGGING
+    if "choices" not in result:
+
+        return f"API Error: {result}"
 
     return result["choices"][0]["message"]["content"]
 
@@ -346,7 +351,7 @@ if generate:
                 "Syllabus Generated Successfully"
             )
 
-            # PDF
+            # PDF DOWNLOAD
             pdf_data = create_pdf(output)
 
             st.download_button(
@@ -356,7 +361,7 @@ if generate:
                 mime="application/pdf"
             )
 
-            # DISPLAY
+            # DISPLAY OUTPUT
             html_output = md_lib.markdown(output)
 
             st.markdown(
