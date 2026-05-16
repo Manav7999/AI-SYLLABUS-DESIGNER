@@ -138,36 +138,68 @@ def ask_bytez(prompt_text):
         "Content-Type": "application/json"
     }
 
-    payload = {
-        "model": "mistralai/Mistral-7B-Instruct-v0.2",
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are an expert university syllabus designer."
-            },
-            {
-                "role": "user",
-                "content": prompt_text
-            }
-        ],
-        "max_tokens": 1200,
-        "temperature": 0.7
-    }
+    # MULTIPLE FALLBACK MODELS
+    models = [
 
-    response = requests.post(
-        url,
-        headers=headers,
-        json=payload
-    )
+        "google/gemma-2-2b-it",
+        "microsoft/phi-2",
+        "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+        "mistralai/Mistral-7B-Instruct-v0.2",
+        "meta-llama/Llama-2-7b-chat-hf"
 
-    result = response.json()
+    ]
 
-    # ERROR HANDLING
-    if "choices" not in result:
+    last_error = ""
 
-        return f"API Error: {result}"
+    # TRY MODELS ONE BY ONE
+    for model_name in models:
 
-    return result["choices"][0]["message"]["content"]
+        payload = {
+            "model": model_name,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an expert university syllabus designer."
+                },
+                {
+                    "role": "user",
+                    "content": prompt_text
+                }
+            ],
+            "max_tokens": 1000,
+            "temperature": 0.7
+        }
+
+        try:
+
+            response = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=60
+            )
+
+            result = response.json()
+
+            # DEBUG OUTPUT
+            st.write(f"Trying Model: {model_name}")
+
+            # SUCCESS
+            if "choices" in result:
+
+                return result["choices"][0]["message"]["content"]
+
+            # STORE ERROR
+            else:
+
+                last_error = result
+
+        except Exception as e:
+
+            last_error = str(e)
+
+    # IF ALL MODELS FAIL
+    return f"All models failed. Last Error: {last_error}"
 
 # ---------------- OLLAMA FUNCTION ---------------- #
 
