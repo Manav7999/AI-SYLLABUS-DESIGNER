@@ -139,7 +139,7 @@ def ask_bytez(prompt_text):
     }
 
     payload = {
-        "model": "meta-llama/Meta-Llama-3-8B-Instruct",
+        "model": "mistralai/Mistral-7B-Instruct-v0.2",
         "messages": [
             {
                 "role": "system",
