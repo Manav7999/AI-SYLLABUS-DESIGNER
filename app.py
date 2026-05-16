@@ -133,9 +133,8 @@ def ask_huggingface(prompt_text):
 
     models = [
 
-        "google/flan-t5-large",
         "google/flan-t5-base",
-        "facebook/bart-large-cnn"
+        "google/flan-t5-small"
 
     ]
 
@@ -145,7 +144,6 @@ def ask_huggingface(prompt_text):
 
     last_error = ""
 
-    # TRY MULTIPLE MODELS
     for model_name in models:
 
         API_URL = f"https://api-inference.huggingface.co/models/{model_name}"
@@ -165,19 +163,47 @@ def ask_huggingface(prompt_text):
                 timeout=120
             )
 
-            result = response.json()
+            st.write("Status Code:", response.status_code)
 
-            # DEBUG OUTPUT
+            # EMPTY RESPONSE CHECK
+            if response.text.strip() == "":
+
+                last_error = "Empty response from HuggingFace API"
+
+                continue
+
+            # SAFE JSON PARSE
+            try:
+
+                result = response.json()
+
+            except Exception:
+
+                last_error = response.text
+
+                continue
+
             st.write(result)
 
             # SUCCESS
             if isinstance(result, list):
 
-                if "generated_text" in result[0]:
+                if len(result) > 0:
 
-                    return result[0]["generated_text"]
+                    if "generated_text" in result[0]:
 
-            last_error = result
+                        return result[0]["generated_text"]
+
+            # MODEL LOADING / ERRORS
+            if isinstance(result, dict):
+
+                if "error" in result:
+
+                    last_error = result["error"]
+
+                else:
+
+                    last_error = str(result)
 
         except Exception as e:
 
@@ -334,7 +360,7 @@ if generate:
 
         Total Units: {units}
 
-        Description:
+        Course Description:
         {description}
 
         Old Syllabus Reference:
