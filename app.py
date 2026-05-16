@@ -137,8 +137,8 @@ def ask_huggingface(prompt_text):
 
     models = [
 
-        "google/flan-t5-base",
-        "google/flan-t5-small"
+        "mistralai/Mistral-7B-Instruct-v0.2",
+        "HuggingFaceH4/zephyr-7b-beta"
 
     ]
 
@@ -155,16 +155,27 @@ def ask_huggingface(prompt_text):
                 token=HF_TOKEN
             )
 
-            response = client.text_generation(
-                prompt_text,
-                max_new_tokens=700
+            response = client.chat_completion(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert university syllabus designer."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt_text
+                    }
+                ],
+                max_tokens=700
             )
 
             if response:
 
-                return response
+                return response.choices[0].message.content
 
         except Exception as e:
+
+            st.write(f"Failed: {e}")
 
             last_error = str(e)
 
