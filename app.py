@@ -133,53 +133,38 @@ def create_pdf(text):
 
 def ask_huggingface(prompt_text):
 
-    HF_TOKEN = st.secrets["HF_API_KEY"]
+    try:
 
-    models = [
+        HF_TOKEN = st.secrets["HF_API_KEY"]
 
-        "mistralai/Mistral-7B-Instruct-v0.2",
-        "HuggingFaceH4/zephyr-7b-beta"
+        client = InferenceClient(
+            provider="hf-inference",
+            api_key=HF_TOKEN
+        )
 
-    ]
+        response = client.chat.completions.create(
 
-    last_error = ""
+            model="Qwen/Qwen2.5-7B-Instruct",
 
-    for model_name in models:
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert university syllabus designer."
+                },
+                {
+                    "role": "user",
+                    "content": prompt_text
+                }
+            ],
 
-        try:
+            max_tokens=700
+        )
 
-            st.write(f"Trying Model: {model_name}")
+        return response.choices[0].message.content
 
-            client = InferenceClient(
-                model=model_name,
-                token=HF_TOKEN
-            )
+    except Exception as e:
 
-            response = client.chat_completion(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert university syllabus designer."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt_text
-                    }
-                ],
-                max_tokens=700
-            )
-
-            if response:
-
-                return response.choices[0].message.content
-
-        except Exception as e:
-
-            st.write(f"Failed: {e}")
-
-            last_error = str(e)
-
-    return f"All HuggingFace models failed. Last Error: {last_error}"
+        return f"API Error: {str(e)}"
 
 # ---------------- HERO SECTION ---------------- #
 
@@ -313,18 +298,21 @@ Generate:
 3. Unit Wise Syllabus
 4. Practical List
 5. Recommended Books
-6. Career Outcomes
+6. Career Opportunities
 
 Make it professional and detailed.
 """
 
-        try:
+        with st.spinner("Generating syllabus..."):
 
-            with st.spinner(
-                "Generating syllabus..."
-            ):
+            output = ask_huggingface(prompt)
 
-                output = ask_huggingface(prompt)
+        # SHOW RESULT
+        if output.startswith("API Error"):
+
+            st.error(output)
+
+        else:
 
             st.success(
                 "Syllabus Generated Successfully"
@@ -346,10 +334,4 @@ Make it professional and detailed.
             st.markdown(
                 f'<div class="generated-box">{html_output}</div>',
                 unsafe_allow_html=True
-            )
-
-        except Exception as e:
-
-            st.error(
-                f"Error: {str(e)}"
             )
