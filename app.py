@@ -1,10 +1,10 @@
 import streamlit as st
+import requests
 import PyPDF2
 import docx
 import io
 import markdown as md_lib
-
-from huggingface_hub import InferenceClient
+import ollama
 
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import (
@@ -51,7 +51,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- FILE TEXT EXTRACTION ---------------- #
+# ---------------- FILE EXTRACTION ---------------- #
 
 def extract_text_from_file(uploaded_file):
 
@@ -129,37 +129,83 @@ def create_pdf(text):
 
     return buffer
 
-# ---------------- HUGGING FACE AI FUNCTION ---------------- #
+# ---------------- OLLAMA FUNCTION ---------------- #
 
-def ask_huggingface(prompt_text):
+def ask_ollama(prompt_text):
 
     try:
 
-        HF_TOKEN = st.secrets["HF_API_KEY"]
+        response = ollama.chat(
 
-        client = InferenceClient(
-            token=HF_TOKEN
-        )
-
-        response = client.chat.completions.create(
-
-            model="microsoft/Phi-3-mini-4k-instruct",
+            model="gemma:2b",
 
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert university syllabus designer."
-                },
                 {
                     "role": "user",
                     "content": prompt_text
                 }
-            ],
-
-            max_tokens=700
+            ]
         )
 
-        return response.choices[0].message.content
+        return response["message"]["content"]
+
+    except Exception as e:
+
+        return f"API Error: {str(e)}"
+
+# ---------------- OPENROUTER FUNCTION ---------------- #
+
+def ask_openrouter(prompt_text):
+
+    try:
+
+        API_KEY = st.secrets["OPENROUTER_API_KEY"]
+
+        headers = {
+
+            "Authorization": f"Bearer {API_KEY}",
+
+            "HTTP-Referer": "https://streamlit.io",
+
+            "X-Title": "AI Syllabus Designer"
+
+        }
+
+        payload = {
+
+            "model": "nvidia/llama-3.1-nemotron-70b-instruct:free",
+
+            "messages": [
+
+                {
+                    "role": "system",
+                    "content": "You are an expert university syllabus designer."
+                },
+
+                {
+                    "role": "user",
+                    "content": prompt_text
+                }
+
+            ]
+
+        }
+
+        response = requests.post(
+
+            url="https://openrouter.ai/api/v1/chat/completions",
+
+            headers=headers,
+
+            json=payload,
+
+            timeout=120
+
+        )
+
+        result = response.json()
+
+        return result["choices"][0]["message"]["content"]
 
     except Exception as e:
 
@@ -178,6 +224,16 @@ st.write(
 with st.sidebar:
 
     st.header("⚙️ Settings")
+
+    ai_provider = st.selectbox(
+
+        "Select AI Provider",
+
+        [
+            "OpenRouter Cloud",
+            "Ollama Local"
+        ]
+    )
 
     university_name = st.text_input(
         "University Name"
@@ -271,7 +327,7 @@ if generate:
                     uploaded_file
                 )
 
-        # AI PROMPT
+        # PROMPT
         prompt = f"""
 Create a professional university syllabus.
 
@@ -307,15 +363,23 @@ Generate:
 
 6. Career Opportunities
 
-Make the syllabus detailed, professional and structured properly.
+Make the syllabus detailed, professional and properly structured.
 """
 
-        # GENERATE RESPONSE
+        # GENERATE
         with st.spinner(
             "Generating syllabus..."
         ):
 
-            output = ask_huggingface(prompt)
+            # OPENROUTER
+            if ai_provider == "OpenRouter Cloud":
+
+                output = ask_openrouter(prompt)
+
+            # OLLAMA
+            else:
+
+                output = ask_ollama(prompt)
 
         # ERROR
         if output.startswith("API Error"):

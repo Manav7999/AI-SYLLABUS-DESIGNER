@@ -1,6 +1,7 @@
 streamlit
+requests
 PyPDF2
 python-docx
 markdown
 reportlab
-huggingface_hub
+ollama
