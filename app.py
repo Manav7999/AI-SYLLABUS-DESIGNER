@@ -157,71 +157,75 @@ def ask_ollama(prompt_text):
 
 def ask_openrouter(prompt_text):
 
-    try:
+    API_KEY = st.secrets["OPENROUTER_API_KEY"]
 
-        API_KEY = st.secrets["OPENROUTER_API_KEY"]
+    models = [
 
-        headers = {
+        "mistralai/mistral-7b-instruct:free",
 
-            "Authorization": f"Bearer {API_KEY}",
+        "google/gemma-2-9b-it:free",
 
-            "HTTP-Referer": "https://streamlit.io",
+        "meta-llama/llama-3.2-3b-instruct:free"
 
-            "X-Title": "AI Syllabus Designer"
+    ]
 
-        }
+    headers = {
 
-        payload = {
+        "Authorization": f"Bearer {API_KEY}",
 
-            "model": "meta-llama/llama-3.2-3b-instruct:free",
+        "HTTP-Referer": "https://streamlit.io",
 
-            "messages": [
+        "X-Title": "AI Syllabus Designer"
 
-                {
-                    "role": "system",
-                    "content": "You are an expert university syllabus designer."
-                },
+    }
 
-                {
-                    "role": "user",
-                    "content": prompt_text
-                }
+    for model_name in models:
 
-            ]
+        try:
 
-        }
+            payload = {
 
-        response = requests.post(
+                "model": model_name,
 
-            url="https://openrouter.ai/api/v1/chat/completions",
+                "messages": [
 
-            headers=headers,
+                    {
+                        "role": "system",
+                        "content": "You are an expert university syllabus designer."
+                    },
 
-            json=payload,
+                    {
+                        "role": "user",
+                        "content": prompt_text
+                    }
 
-            timeout=120
+                ]
 
-        )
+            }
 
-        result = response.json()
+            response = requests.post(
 
-        # SUCCESS
-        if "choices" in result:
+                url="https://openrouter.ai/api/v1/chat/completions",
 
-            return result["choices"][0]["message"]["content"]
+                headers=headers,
 
-        # OPENROUTER ERROR
-        elif "error" in result:
+                json=payload,
 
-            return f"API Error: {result['error']['message']}"
+                timeout=120
 
-        else:
+            )
 
-            return f"Unexpected Response: {result}"
+            result = response.json()
 
-    except Exception as e:
+            # SUCCESS
+            if "choices" in result:
 
-        return f"API Error: {str(e)}"
+                return result["choices"][0]["message"]["content"]
+
+        except:
+            pass
+
+    return "API Error: All free OpenRouter models are currently busy. Please try again in 1 minute."
 
 # ---------------- TITLE ---------------- #
 
