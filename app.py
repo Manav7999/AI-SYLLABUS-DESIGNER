@@ -173,7 +173,7 @@ def ask_openrouter(prompt_text):
 
         payload = {
 
-            "model": "nvidia/llama-3.1-nemotron-70b-instruct:free",
+            "model": "meta-llama/llama-3.2-3b-instruct:free",
 
             "messages": [
 
@@ -205,7 +205,19 @@ def ask_openrouter(prompt_text):
 
         result = response.json()
 
-        return result["choices"][0]["message"]["content"]
+        # SUCCESS
+        if "choices" in result:
+
+            return result["choices"][0]["message"]["content"]
+
+        # OPENROUTER ERROR
+        elif "error" in result:
+
+            return f"API Error: {result['error']['message']}"
+
+        else:
+
+            return f"Unexpected Response: {result}"
 
     except Exception as e:
 
@@ -316,7 +328,7 @@ if generate:
 
         extracted_text = ""
 
-        # EXTRACT FILE
+        # FILE EXTRACTION
         if uploaded_file:
 
             with st.spinner(
@@ -366,7 +378,7 @@ Generate:
 Make the syllabus detailed, professional and properly structured.
 """
 
-        # GENERATE
+        # AI GENERATION
         with st.spinner(
             "Generating syllabus..."
         ):
@@ -386,9 +398,9 @@ Make the syllabus detailed, professional and properly structured.
 
             st.error(output)
 
-        # SUCCESS
         else:
 
+            # SUCCESS
             st.success(
                 "Syllabus Generated Successfully"
             )
