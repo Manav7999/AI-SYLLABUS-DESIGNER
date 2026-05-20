@@ -153,79 +153,75 @@ def ask_ollama(prompt_text):
 
         return f"API Error: {str(e)}"
 
-# ---------------- OPENROUTER FUNCTION ---------------- #
+# ---------------- GROQ FUNCTION ---------------- #
 
-def ask_openrouter(prompt_text):
+def ask_groq(prompt_text):
 
-    API_KEY = st.secrets["OPENROUTER_API_KEY"]
+    try:
 
-    models = [
+        API_KEY = st.secrets["GROQ_API_KEY"]
 
-        "mistralai/mistral-7b-instruct:free",
+        headers = {
 
-        "google/gemma-2-9b-it:free",
+            "Authorization": f"Bearer {API_KEY}",
 
-        "meta-llama/llama-3.2-3b-instruct:free"
+            "Content-Type": "application/json"
 
-    ]
+        }
 
-    headers = {
+        payload = {
 
-        "Authorization": f"Bearer {API_KEY}",
+            "model": "llama3-8b-8192",
 
-        "HTTP-Referer": "https://streamlit.io",
+            "messages": [
 
-        "X-Title": "AI Syllabus Designer"
+                {
+                    "role": "system",
+                    "content": "You are an expert university syllabus designer."
+                },
 
-    }
+                {
+                    "role": "user",
+                    "content": prompt_text
+                }
 
-    for model_name in models:
+            ],
 
-        try:
+            "temperature": 0.7
 
-            payload = {
+        }
 
-                "model": model_name,
+        response = requests.post(
 
-                "messages": [
+            "https://api.groq.com/openai/v1/chat/completions",
 
-                    {
-                        "role": "system",
-                        "content": "You are an expert university syllabus designer."
-                    },
+            headers=headers,
 
-                    {
-                        "role": "user",
-                        "content": prompt_text
-                    }
+            json=payload,
 
-                ]
+            timeout=120
 
-            }
+        )
 
-            response = requests.post(
+        result = response.json()
 
-                url="https://openrouter.ai/api/v1/chat/completions",
+        # SUCCESS
+        if "choices" in result:
 
-                headers=headers,
+            return result["choices"][0]["message"]["content"]
 
-                json=payload,
+        # ERROR
+        elif "error" in result:
 
-                timeout=120
+            return f"API Error: {result['error']['message']}"
 
-            )
+        else:
 
-            result = response.json()
+            return f"Unexpected Response: {result}"
 
-            # SUCCESS
-            if "choices" in result:
+    except Exception as e:
 
-                return result["choices"][0]["message"]["content"]
-
-        except:
-            pass
-
-    return "API Error: All free OpenRouter models are currently busy. Please try again in 1 minute."
+        return f"API Error: {str(e)}"
 
 # ---------------- TITLE ---------------- #
 
@@ -246,7 +242,7 @@ with st.sidebar:
         "Select AI Provider",
 
         [
-            "OpenRouter Cloud",
+            "Groq Cloud",
             "Ollama Local"
         ]
     )
@@ -387,10 +383,10 @@ Make the syllabus detailed, professional and properly structured.
             "Generating syllabus..."
         ):
 
-            # OPENROUTER
-            if ai_provider == "OpenRouter Cloud":
+            # GROQ
+            if ai_provider == "Groq Cloud":
 
-                output = ask_openrouter(prompt)
+                output = ask_groq(prompt)
 
             # OLLAMA
             else:
