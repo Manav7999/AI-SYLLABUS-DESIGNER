@@ -10,10 +10,17 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
-    Spacer
+    Spacer,
+    Table,
+    TableStyle
 )
 
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import (
+    getSampleStyleSheet,
+    ParagraphStyle
+)
+
+from reportlab.lib import colors
 
 # ---------------- PAGE CONFIG ---------------- #
 
@@ -95,33 +102,273 @@ def extract_text_from_file(uploaded_file):
 
     return ""
 
-# ---------------- PDF CREATION ---------------- #
+# ---------------- PROFESSIONAL PDF CREATION ---------------- #
 
-def create_pdf(text):
+def create_pdf(
+    text,
+    college_name,
+    subject_name,
+    branch,
+    subject_code,
+    year,
+    semester
+):
 
     buffer = io.BytesIO()
 
     document = SimpleDocTemplate(
         buffer,
-        pagesize=letter
+        pagesize=letter,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=30
     )
 
     styles = getSampleStyleSheet()
 
+    # ---------- CUSTOM STYLES ---------- #
+
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontName='Times-Bold',
+        fontSize=24,
+        leading=30,
+        alignment=1,
+        textColor=colors.darkblue,
+        spaceAfter=20
+    )
+
+    heading_style = ParagraphStyle(
+        'HeadingStyle',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=16,
+        leading=22,
+        textColor=colors.HexColor("#003366"),
+        spaceBefore=16,
+        spaceAfter=10
+    )
+
+    subheading_style = ParagraphStyle(
+        'SubHeadingStyle',
+        parent=styles['Heading3'],
+        fontName='Helvetica-Bold',
+        fontSize=13,
+        leading=18,
+        textColor=colors.HexColor("#444444"),
+        spaceBefore=10,
+        spaceAfter=6
+    )
+
+    body_style = ParagraphStyle(
+        'BodyStyle',
+        parent=styles['BodyText'],
+        fontName='Times-Roman',
+        fontSize=12,
+        leading=20,
+        textColor=colors.black,
+        spaceAfter=10
+    )
+
+    info_style = ParagraphStyle(
+        'InfoStyle',
+        parent=styles['BodyText'],
+        fontName='Helvetica',
+        fontSize=12,
+        leading=18,
+        textColor=colors.black,
+        spaceAfter=8
+    )
+
+    bullet_style = ParagraphStyle(
+        'BulletStyle',
+        parent=styles['BodyText'],
+        fontName='Helvetica',
+        fontSize=11,
+        leading=18,
+        leftIndent=20,
+        bulletIndent=10,
+        textColor=colors.black,
+        spaceAfter=6
+    )
+
+    # ---------- STORY ---------- #
+
     story = []
 
+    # TITLE
+    story.append(
+        Paragraph(
+            college_name.upper(),
+            title_style
+        )
+    )
+
+    # SUBJECT DETAILS
+    details = f"""
+    <b>SUBJECT NAME :</b> {subject_name}<br/>
+    <b>BRANCH :</b> {branch}<br/>
+    <b>SUBJECT CODE :</b> {subject_code}<br/>
+    <b>YEAR :</b> {year}<br/>
+    <b>SEMESTER :</b> {semester}
+    """
+
+    story.append(
+        Paragraph(
+            details,
+            info_style
+        )
+    )
+
+    story.append(Spacer(1, 20))
+
+    # MAIN CONTENT
     lines = text.split("\n")
 
     for line in lines:
 
-        paragraph = Paragraph(
-            line,
-            styles["BodyText"]
+        clean_line = line.strip()
+
+        if clean_line == "":
+            continue
+
+        # MAIN HEADINGS
+        if (
+            "Course Overview" in clean_line
+            or "Learning Outcomes" in clean_line
+            or "Practical" in clean_line
+            or "Books" in clean_line
+            or "Career" in clean_line
+        ):
+
+            story.append(
+                Paragraph(
+                    clean_line,
+                    heading_style
+                )
+            )
+
+        # UNIT HEADINGS
+        elif (
+            clean_line.startswith("Unit")
+            or clean_line.startswith("UNIT")
+        ):
+
+            story.append(
+                Paragraph(
+                    clean_line,
+                    subheading_style
+                )
+            )
+
+        # BULLETS
+        elif (
+            clean_line.startswith("-")
+            or clean_line.startswith("•")
+            or clean_line.startswith("*")
+        ):
+
+            bullet_text = clean_line.replace("-", "").replace("•", "").replace("*", "").strip()
+
+            story.append(
+                Paragraph(
+                    f"• {bullet_text}",
+                    bullet_style
+                )
+            )
+
+        # NORMAL TEXT
+        else:
+
+            story.append(
+                Paragraph(
+                    clean_line,
+                    body_style
+                )
+            )
+
+    # ---------- OVERVIEW SECTION ---------- #
+
+    story.append(Spacer(1, 20))
+
+    story.append(
+        Paragraph(
+            "SYLLABUS OVERVIEW",
+            heading_style
         )
+    )
 
-        story.append(paragraph)
+    story.append(
+        Paragraph(
+            "This syllabus is designed to provide students with theoretical understanding and practical exposure in the selected subject area. The curriculum focuses on conceptual clarity, practical implementation, industry-oriented learning, and academic excellence.",
+            body_style
+        )
+    )
 
-        story.append(Spacer(1, 10))
+    # ---------- TABLE SECTION ---------- #
+
+    story.append(Spacer(1, 20))
+
+    story.append(
+        Paragraph(
+            "SYLLABUS COMPLETION TABLE",
+            heading_style
+        )
+    )
+
+    table_data = [
+
+        ["UNIT", "TOPIC", "EXPECTED COMPLETION"],
+
+        ["Unit 1", "Introduction & Fundamentals", "Week 1-2"],
+
+        ["Unit 2", "Core Concepts", "Week 3-4"],
+
+        ["Unit 3", "Advanced Concepts", "Week 5-6"],
+
+        ["Unit 4", "Applications", "Week 7-8"],
+
+        ["Unit 5", "Projects & Practical Learning", "Week 9-10"]
+
+    ]
+
+    table = Table(
+        table_data,
+        colWidths=[120, 220, 150]
+    )
+
+    table.setStyle(
+
+        TableStyle([
+
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#003366")),
+
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+
+            ('FONTNAME', (0, 1), (-1, -1), 'Times-Roman'),
+
+            ('FONTSIZE', (0, 1), (-1, -1), 11),
+
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+
+        ])
+    )
+
+    story.append(table)
+
+    # ---------- BUILD PDF ---------- #
 
     document.build(story)
 
@@ -205,12 +452,10 @@ def ask_groq(prompt_text):
 
         result = response.json()
 
-        # SUCCESS
         if "choices" in result:
 
             return result["choices"][0]["message"]["content"]
 
-        # ERROR
         elif "error" in result:
 
             return f"API Error: {result['error']['message']}"
@@ -248,7 +493,17 @@ with st.sidebar:
     )
 
     university_name = st.text_input(
-        "University Name"
+        "College / University Name"
+    )
+
+    subject_code = st.text_input(
+        "Subject Code",
+        value="CS101"
+    )
+
+    year = st.text_input(
+        "Academic Year",
+        value="2026"
     )
 
     semester = st.selectbox(
@@ -328,7 +583,6 @@ if generate:
 
         extracted_text = ""
 
-        # FILE EXTRACTION
         if uploaded_file:
 
             with st.spinner(
@@ -339,7 +593,6 @@ if generate:
                     uploaded_file
                 )
 
-        # PROMPT
         prompt = f"""
 Create a professional university syllabus.
 
@@ -378,44 +631,45 @@ Generate:
 Make the syllabus detailed, professional and properly structured.
 """
 
-        # AI GENERATION
         with st.spinner(
             "Generating syllabus..."
         ):
 
-            # GROQ
             if ai_provider == "Groq Cloud":
 
                 output = ask_groq(prompt)
 
-            # OLLAMA
             else:
 
                 output = ask_ollama(prompt)
 
-        # ERROR
         if output.startswith("API Error"):
 
             st.error(output)
 
         else:
 
-            # SUCCESS
             st.success(
                 "Syllabus Generated Successfully"
             )
 
-            # PDF
-            pdf_data = create_pdf(output)
+            pdf_data = create_pdf(
+                output,
+                university_name,
+                subject,
+                branch,
+                subject_code,
+                year,
+                semester
+            )
 
             st.download_button(
-                label="Download PDF",
+                label="Download Professional PDF",
                 data=pdf_data,
                 file_name=f"{subject}_syllabus.pdf",
                 mime="application/pdf"
             )
 
-            # DISPLAY OUTPUT
             html_output = md_lib.markdown(output)
 
             st.markdown(
